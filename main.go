@@ -25,7 +25,7 @@ func main() {
 
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
-	// router.GET("/albums/:id", getAlbum)
+	router.GET("/albums/:id", getAlbum)
 	router.POST("/albums", postAlbum)
 
 	router.Run("localhost:8080")
@@ -35,6 +35,20 @@ func getAlbums(c *gin.Context) {
 	var albums []model.Album
 	database.DB.Find(&albums)
 	c.IndentedJSON(http.StatusOK, albums)
+}
+
+func getAlbum(c *gin.Context) {
+	id := c.Param("id")
+
+	var album model.Album
+	result := database.DB.First(&album, id)
+
+	if result.Error != nil {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "album not found"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, album)
 }
 
 func postAlbum(c *gin.Context) {

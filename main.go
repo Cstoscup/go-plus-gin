@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm/clause"
 )
 
 type Album struct {
@@ -14,12 +15,6 @@ type Album struct {
 	Price  float64 `binding:"required" json:"price"`
 }
 
-// var albums = []Album{
-// 	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-// 	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-// 	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
-// }
-
 func main() {
 	database.Connect()
 
@@ -27,6 +22,7 @@ func main() {
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbum)
 	router.POST("/albums", postAlbum)
+	router.DELETE("/albums/:id", deleteAlbum)
 
 	router.Run("localhost:8080")
 }
@@ -60,11 +56,24 @@ func postAlbum(c *gin.Context) {
 	}
 
 	album := model.Album{Title: newAlbum.Title, Artist: newAlbum.Artist, Price: newAlbum.Price}
-	result := database.DB.Create(&album)
+
+	result := database.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "title"}},
+		DoUpdates: clause.AssignmentColumns([]string{"artist", "price"}),
+	}).Create(&album)
 
 	if result.Error != nil {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 	}
 
 	c.IndentedJSON(http.StatusCreated, album)
+}
+
+func deleteAlbum(c *gin.Context) {
+	id := c.Param("id")
+	result := database.DB.Delete(&model.Album{}, id)
+
+	if result.Error != nil {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	}
 }
